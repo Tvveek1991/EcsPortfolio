@@ -1,0 +1,56 @@
+using Leopotam.EcsLite;
+using Project.Scripts.Gameplay.Components;
+using Project.Scripts.Gameplay.Data;
+using UnityEngine;
+
+namespace Project.Scripts.Gameplay.Systems
+{
+    public class JumpSystem : IEcsInitSystem, IEcsRunSystem, IEcsPostRunSystem
+    {
+        private readonly PersonData m_personData;
+
+        private EcsWorld m_world;
+
+        private EcsFilter m_jumperFilter;
+
+        private EcsPool<Rigidbody2d> m_rigidbody2dPool;
+        private EcsPool<GroundCheckComponent> m_groundCheckPool;
+        private EcsPool<Jump> m_jumpPool;
+
+        public JumpSystem(PersonData personData)
+        {
+            m_personData = personData;
+        }
+
+        public void Init(IEcsSystems systems)
+        {
+            m_world = systems.GetWorld();
+
+            m_jumperFilter = m_world.Filter<Jump>().Inc<Rigidbody2d>().Inc<GroundCheckComponent>().End();
+
+            m_rigidbody2dPool = m_world.GetPool<Rigidbody2d>();
+            m_groundCheckPool = m_world.GetPool<GroundCheckComponent>();
+            m_jumpPool = m_world.GetPool<Jump>();
+        }
+
+        public void Run(IEcsSystems systems)
+        {
+            TryJump();
+        }
+
+        public void PostRun(IEcsSystems systems)
+        {
+            foreach (var jumper in m_jumperFilter)
+                m_jumpPool.Del(jumper);
+        }
+
+        private void TryJump()
+        {
+            foreach (var jumper in m_jumperFilter)
+            {
+                m_rigidbody2dPool.Get(jumper).Rigidbody.linearVelocity = new Vector2(m_rigidbody2dPool.Get(jumper).Rigidbody.linearVelocity.x, m_personData.JumpForce);
+                m_groundCheckPool.Get(jumper).GroundSensors.ForEach(item => item.Disable(.2f));
+            }
+        }
+    }
+}

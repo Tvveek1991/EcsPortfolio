@@ -1,0 +1,41 @@
+using Project.Scripts.Gameplay.Services.CameraService;
+using Project.Scripts.Gameplay.Services.BridgeFactory;
+using Project.Scripts.Gameplay.Services.CanvasService;
+using Project.Scripts.Gameplay.Services.CoinsCounterService;
+using Project.Scripts.Gameplay.Services.CoinsService;
+using Project.Scripts.Gameplay.Services.FinishViewService;
+using Project.Scripts.Gameplay.Services.GameLevelService;
+using Project.Scripts.Gameplay.Services.Input;
+using Project.Scripts.Gameplay.Services.EntityViewRegistry;
+using Project.Scripts.Gameplay.Services.TutorialService;
+using Project.Scripts.Gameplay.Services.TweenRegistry;
+using Project.Scripts.Gameplay.Services.ViewFactory;
+using VContainer;
+using VContainer.Unity;
+
+namespace Gameplay
+{
+  public class GameServicesInstaller: IInstaller
+  {
+    public void Install(IContainerBuilder builder)
+    {
+      builder.Register<ICanvasService, CanvasService>(Lifetime.Scoped);
+      
+      builder.Register<ICameraService, CameraService>(Lifetime.Scoped);
+      builder.Register<IEntityViewRegistry, EntityViewRegistry>(Lifetime.Scoped);
+      builder.Register<GameplayTweenRegistry>(Lifetime.Scoped).AsImplementedInterfaces();
+      builder.Register<IGameplayViewFactory, GameplayViewFactory>(Lifetime.Scoped);
+      builder.Register<IGameplayUiBridgeFactory, GameplayUiBridgeFactory>(Lifetime.Scoped);
+      builder.Register<IGameplaySensorBridgeFactory, GameplaySensorBridgeFactory>(Lifetime.Scoped);
+      builder.Register<IGameplayEffectsBridgeFactory, GameplayEffectsBridgeFactory>(Lifetime.Scoped);
+      builder.Register<IGameplayInputReader, GameplayInputReader>(Lifetime.Scoped);
+
+      builder.Register<ICoinsService, CoinsService>(Lifetime.Scoped);
+      builder.Register<IGameLevelService, GameLevelService>(Lifetime.Scoped);
+
+      builder.Register<ITutorialService, TutorialService>(Lifetime.Scoped);
+      builder.Register<IFinishViewService, FinishViewService>(Lifetime.Scoped);
+      builder.Register<ICoinsCounterService, CoinsCounterService>(Lifetime.Scoped);
+    }
+  }
+}

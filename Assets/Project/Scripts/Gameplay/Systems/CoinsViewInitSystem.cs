@@ -1,0 +1,102 @@
+﻿using System.Collections.Generic;
+using Leopotam.EcsLite;
+using Project.Scripts.Gameplay.Components;
+using Project.Scripts.Gameplay.Services.CoinsService;
+using Project.Scripts.Gameplay.Services.EntityViewRegistry;
+using Project.Scripts.Gameplay.Services.GameLevelService;
+using Project.Scripts.Gameplay.Services.ViewFactory;
+using Project.Scripts.Gameplay.Views;
+using UnityEngine;
+
+namespace Project.Scripts.Gameplay.Systems
+{
+    public class CoinsViewInitSystem : IEcsInitSystem, IEcsDestroySystem
+    {
+        private const string CoinViewsParentName = "CoinViewsContainer";
+
+        private readonly IGameplayViewFactory m_gameplayViewFactory;
+        private readonly ICoinsService m_coinsService;
+        private readonly IEntityViewRegistry m_entityViewRegistry;
+        private readonly IGameLevelService m_gameLevelService;
+
+        private EcsWorld m_world;
+
+        private EcsFilter m_coinViewFilter;
+        private EcsFilter m_gameLevelViewRefsFilter;
+
+        private EcsPool<TransformKeeper> m_transformPool;
+
+        private GameObject m_parentObject;
+        private List<Transform> m_coinSpawnPoints;
+
+        public CoinsViewInitSystem(IGameplayViewFactory gameplayViewFactory, ICoinsService coinsService, IEntityViewRegistry entityViewRegistry, IGameLevelService gameLevelService)
+        {
+            m_coinsService = coinsService;
+            m_entityViewRegistry = entityViewRegistry;
+            m_gameplayViewFactory = gameplayViewFactory;
+            m_gameLevelService = gameLevelService;
+        }
+
+        public void Init(IEcsSystems systems)
+        {
+            m_world = systems.GetWorld();
+
+            m_coinViewFilter = m_world.Filter<CoinViewKeeper>().Inc<TransformKeeper>().End();
+            
+            m_transformPool = m_world.GetPool<TransformKeeper>();
+
+            CreateCoinViews();
+
+            SetCoinViewsStartPosition();
+        }
+        
+        public void Destroy(IEcsSystems systems)
+        {
+            Object.Destroy(m_parentObject);
+        }
+
+        private void CreateCoinViews()
+        {
+            m_parentObject = new GameObject(CoinViewsParentName);
+            m_coinSpawnPoints = m_gameLevelService.View.GetCoinsSpawnPoints();
+
+            for (int i = 0; i < m_coinSpawnPoints.Count; i++)
+            {
+                var newEntity = m_world.NewEntity();
+                var coinView = m_gameplayViewFactory.CreateCoin(m_parentObject.transform);
+
+                m_entityViewRegistry.Register(newEntity, coinView);
+                
+                AttachComponents(newEntity, coinView);
+            }
+            
+            m_coinsService.RefreshTotalCount();
+        }
+
+        private void AttachComponents(int entity, CoinView view)
+        {
+            m_world.GetPool<CoinViewKeeper>().Add(entity);
+            
+            AttachTransformComponent();
+
+            void AttachTransformComponent()
+            {
+                ref TransformKeeper transformKeeper = ref m_world.GetPool<TransformKeeper>().Add(entity);
+                transformKeeper.ObjectTransform = view.transform;
+            }
+        }
+
+        private void SetCoinViewsStartPosition()
+        {
+            var listSpawnPoints = m_coinSpawnPoints;
+            foreach (var coinView in m_coinViewFilter)
+            {
+                if (listSpawnPoints.Count <= 0) 
+                    continue;
+
+                m_transformPool.Get(coinView).ObjectTransform.position = listSpawnPoints[0].position;
+                listSpawnPoints.RemoveAt(0);
+            }
+        }
+    }
+}

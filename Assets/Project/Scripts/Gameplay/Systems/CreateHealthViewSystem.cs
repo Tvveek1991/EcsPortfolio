@@ -1,0 +1,84 @@
+﻿using Leopotam.EcsLite;
+using Project.Scripts.Gameplay.Components;
+using Project.Scripts.Gameplay.Data;
+using Project.Scripts.Gameplay.Services.CanvasService;
+using Project.Scripts.Gameplay.Services.EntityViewRegistry;
+using Project.Scripts.Gameplay.Services.ViewFactory;
+using Project.Scripts.Gameplay.Views;
+using UnityEngine;
+
+namespace Project.Scripts.Gameplay.Systems
+{
+    public class HealthViewInitSystem : IEcsInitSystem, IEcsRunSystem
+    {
+        private EcsWorld m_world;
+
+        private EcsFilter m_healthFilter;
+
+        private EcsPool<Health> m_healthPool;
+        private EcsPool<HealthViewComponent> m_healthViewPool;
+
+        private readonly IGameplayViewFactory m_gameplayViewFactory;
+        private readonly ICanvasService m_canvasService;
+        private readonly IEntityViewRegistry m_entityViewRegistry;
+
+        public HealthViewInitSystem(IGameplayViewFactory gameplayViewFactory, IEntityViewRegistry entityViewRegistry, ICanvasService canvasService)
+        {
+            m_canvasService = canvasService;
+            m_gameplayViewFactory = gameplayViewFactory;
+            m_entityViewRegistry = entityViewRegistry;
+        }
+        
+        public void Init(IEcsSystems systems)
+        {
+            m_world = systems.GetWorld();
+            
+            m_healthFilter = m_world.Filter<Health>().End();
+
+            m_healthPool = m_world.GetPool<Health>();
+            m_healthViewPool = m_world.GetPool<HealthViewComponent>();
+        }
+        
+        public void Run(IEcsSystems systems)
+        {
+            CreateHealthView();
+        }
+
+        private void CreateHealthView()
+        {
+            foreach (var entity in m_healthFilter)
+            {
+                ref Health health = ref m_healthPool.Get(entity);
+                if(health.ViewEntity != 0)
+                    continue;
+                
+                var newEntity = m_world.NewEntity();
+                
+                var spawnPoint = m_canvasService.Canvas.transform;
+                    
+                var healthView = m_gameplayViewFactory.CreateHealth(spawnPoint);
+                SetViewOptions(healthView, health);
+
+                m_entityViewRegistry.Register(newEntity, healthView);
+                
+                m_healthViewPool.Add(newEntity);
+                AttachTransformComponent(newEntity, healthView.transform);
+                
+                health.ViewEntity = newEntity;
+            }
+        }
+
+        private void AttachTransformComponent(int entity, Transform attachedTransform)
+        {
+            ref TransformKeeper transformKeeper = ref m_world.GetPool<TransformKeeper>().Add(entity);
+            transformKeeper.ObjectTransform = attachedTransform;
+        }
+
+        private void SetViewOptions(HealthView healthView, Health health)
+        {
+            healthView.CanvasGroup.alpha = 0;
+            healthView.transform.localPosition = Vector3.zero;
+            healthView.HealthBar.maxValue = health.Count;
+        }
+    }
+}
